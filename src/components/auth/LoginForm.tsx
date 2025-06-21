@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuth } from '../../hooks/useAuth'
-import { Eye, EyeOff, Loader2, CreditCard } from 'lucide-react'
+import { Eye, EyeOff, Loader2, CreditCard, AlertCircle } from 'lucide-react'
 
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -13,8 +13,12 @@ import { Button } from '../ui/button'
 import { cn } from '../../lib/utils'
 
 const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres')
+  email: z.string()
+    .min(1, 'Email é obrigatório')
+    .email('Email inválido'),
+  password: z.string()
+    .min(1, 'Senha é obrigatória')
+    .min(6, 'Senha deve ter pelo menos 6 caracteres')
 })
 
 type LoginFormData = z.infer<typeof loginSchema>
@@ -22,7 +26,7 @@ type LoginFormData = z.infer<typeof loginSchema>
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const { signIn, user, profile, loading } = useAuth()
+  const { signIn, user, profile, loading, initialized } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -31,30 +35,51 @@ export function LoginForm() {
   const {
     register,
     handleSubmit,
-    formState: { errors }
+    formState: { errors },
+    setError,
+    clearErrors
   } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema)
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: ''
+    }
   })
 
-  // Redireciona quando usuário e perfil estão carregados
+  // Redireciona usuário já autenticado
   useEffect(() => {
-    if (!loading && user && profile) {
-      console.log('✅ Redirecionando usuário logado:', { email: user.email, role: profile.role })
+    if (initialized && !loading && user && profile) {
+      console.log('✅ Usuário já autenticado, redirecionando...')
       
-      // Determina para onde redirecionar baseado no role
+      // Se veio de uma rota específica, vai para lá
+      if (from && from !== '/login') {
+        navigate(from, { replace: true })
+        return
+      }
+      
+      // Senão, vai para o dashboard apropriado
       const redirectPath = profile.role === 'super_admin' 
         ? '/superadmin/dashboard' 
         : '/admin/dashboard'
       
-      console.log('📍 Redirecionando para:', redirectPath)
-      
-      // Usa window.location para garantir o redirecionamento
-      window.location.href = redirectPath
+      navigate(redirectPath, { replace: true })
     }
-  }, [user, profile, loading])
+  }, [initialized, loading, user, profile, from, navigate])
 
-  // Se já está logado e carregado, não mostra o form
-  if (!loading && user && profile) {
+  // Mostra loading se ainda não inicializou ou se está carregando
+  if (!initialized || (loading && !isLoading)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/40">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Se já está autenticado, mostra loading de redirecionamento
+  if (user && profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/40">
         <div className="flex flex-col items-center gap-4">
@@ -66,17 +91,48 @@ export function LoginForm() {
   }
 
   const onSubmit = async (data: LoginFormData) => {
+    if (isLoading) return
+    
     setIsLoading(true)
+    clearErrors()
+    
     try {
-      console.log('Submetendo login para:', data.email)
+      console.log('🔐 Submetendo login para:', data.email)
       const { error } = await signIn(data.email, data.password)
       
       if (error) {
-        console.error('Erro no login:', error)
+        console.error('❌ Erro no login:', error)
+        
+        // Define erro específico no campo apropriado
+        if (error.message.includes('Invalid login credentials')) {
+          setError('root', { 
+            type: 'credentials', 
+            message: 'Email ou senha incorretos' 
+          })
+        } else if (error.message.includes('Email not confirmed')) {
+          setError('email', { 
+            type: 'not_confirmed', 
+            message: 'Email não confirmado' 
+          })
+        } else if (error.message.includes('Too many requests')) {
+          setError('root', { 
+            type: 'rate_limit', 
+            message: 'Muitas tentativas. Aguarde alguns minutos' 
+          })
+        } else {
+          setError('root', { 
+            type: 'general', 
+            message: error.message || 'Erro ao fazer login' 
+          })
+        }
       }
-      // O redirecionamento será feito pelo useEffect quando o perfil carregar
+      // Se sucesso, o redirecionamento será feito pelo useEffect
     } catch (error) {
-      console.error('Erro no login:', error)
+      console.error('💥 Erro inesperado no login:', error)
+      setError('root', { 
+        type: 'unexpected', 
+        message: 'Erro inesperado. Tente novamente' 
+      })
     } finally {
       setIsLoading(false)
     }
@@ -111,6 +167,16 @@ export function LoginForm() {
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+              {/* Erro geral */}
+              {errors.root && (
+                <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                  <p className="text-sm text-destructive">
+                    {errors.root.message}
+                  </p>
+                </div>
+              )}
+
               {/* Email */}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -120,6 +186,7 @@ export function LoginForm() {
                   type="email"
                   autoComplete="email"
                   placeholder="seu@email.com"
+                  disabled={isLoading}
                   className={cn(errors.email && 'border-destructive')}
                 />
                 {errors.email && (
@@ -139,6 +206,7 @@ export function LoginForm() {
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     placeholder="••••••••"
+                    disabled={isLoading}
                     className={cn(
                       'pr-10',
                       errors.password && 'border-destructive'
@@ -148,6 +216,7 @@ export function LoginForm() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    disabled={isLoading}
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
                   >
@@ -170,6 +239,7 @@ export function LoginForm() {
                 <Link
                   to="/recuperar-senha"
                   className="text-sm text-primary hover:text-primary/80 font-medium"
+                  tabIndex={isLoading ? -1 : 0}
                 >
                   Esqueceu sua senha?
                 </Link>
@@ -178,11 +248,11 @@ export function LoginForm() {
               {/* Submit button */}
               <Button
                 type="submit"
-                disabled={isLoading || loading}
+                disabled={isLoading}
                 className="w-full"
                 size="lg"
               >
-                {isLoading || loading ? (
+                {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Entrando...
@@ -209,15 +279,15 @@ export function LoginForm() {
         </div>
 
         {/* Demo credentials */}
-        <Card className="bg-warning/10 border-warning/20">
+        <Card className="bg-amber-50 border-amber-200 dark:bg-amber-950/50 dark:border-amber-800">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-warning-foreground">
+            <CardTitle className="text-sm text-amber-800 dark:text-amber-200">
               Credenciais de Demonstração:
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-xs text-warning-foreground/80 space-y-1">
-              <p><strong>Super Admin:</strong> humbertomoreira93@gmail.com</p>
+            <div className="text-xs text-amber-700 dark:text-amber-300 space-y-1">
+              <p><strong>Super Admin:</strong> admin@fidelicard.com / admin123</p>
               <p><strong>Empresa:</strong> empresa@exemplo.com / empresa123</p>
             </div>
           </CardContent>
