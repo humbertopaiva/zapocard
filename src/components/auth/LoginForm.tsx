@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -9,7 +9,6 @@ import { Eye, EyeOff, Loader2, CreditCard } from 'lucide-react'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
-
 import { Button } from '../ui/button'
 import { cn } from '../../lib/utils'
 
@@ -23,11 +22,11 @@ type LoginFormData = z.infer<typeof loginSchema>
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const { signIn } = useAuth()
+  const { signIn, user, profile, loading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  const from = location.state?.from?.pathname || '/admin/dashboard'
+  const from = location.state?.from?.pathname || null
 
   const {
     register,
@@ -37,17 +36,45 @@ export function LoginForm() {
     resolver: zodResolver(loginSchema)
   })
 
+  // Redireciona quando usuário e perfil estão carregados
+  useEffect(() => {
+    if (!loading && user && profile) {
+      console.log('✅ Redirecionando usuário logado:', { email: user.email, role: profile.role })
+      
+      // Determina para onde redirecionar baseado no role
+      const redirectPath = profile.role === 'super_admin' 
+        ? '/superadmin/dashboard' 
+        : '/admin/dashboard'
+      
+      console.log('📍 Redirecionando para:', redirectPath)
+      
+      // Usa window.location para garantir o redirecionamento
+      window.location.href = redirectPath
+    }
+  }, [user, profile, loading])
+
+  // Se já está logado e carregado, não mostra o form
+  if (!loading && user && profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/40">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Redirecionando...</p>
+        </div>
+      </div>
+    )
+  }
+
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true)
     try {
+      console.log('Submetendo login para:', data.email)
       const { error } = await signIn(data.email, data.password)
       
-      if (!error) {
-        // Aguarda um pouco para o perfil carregar
-        setTimeout(() => {
-          navigate(from, { replace: true })
-        }, 500)
+      if (error) {
+        console.error('Erro no login:', error)
       }
+      // O redirecionamento será feito pelo useEffect quando o perfil carregar
     } catch (error) {
       console.error('Erro no login:', error)
     } finally {
@@ -151,11 +178,11 @@ export function LoginForm() {
               {/* Submit button */}
               <Button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || loading}
                 className="w-full"
                 size="lg"
               >
-                {isLoading ? (
+                {isLoading || loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Entrando...
@@ -190,7 +217,7 @@ export function LoginForm() {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="text-xs text-warning-foreground/80 space-y-1">
-              <p><strong>Super Admin:</strong> admin@fidelicard.com / admin123</p>
+              <p><strong>Super Admin:</strong> humbertomoreira93@gmail.com</p>
               <p><strong>Empresa:</strong> empresa@exemplo.com / empresa123</p>
             </div>
           </CardContent>

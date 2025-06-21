@@ -170,46 +170,74 @@ html {
 }
 
 /* Custom component styles */
+.btn {
+  @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
+}
+
+.btn-sm {
+  @apply h-8 px-3 py-1;
+}
+
+.btn-default, .btn {
+  @apply h-9 px-4 py-2;
+}
+
+.btn-lg {
+  @apply h-10 px-6 py-2;
+}
+
 .btn-primary {
-  @apply bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800;
+  @apply bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 focus-visible:ring-primary-600;
 }
 
 .btn-secondary {
-  @apply bg-secondary-100 text-secondary-900 hover:bg-secondary-200 active:bg-secondary-300;
+  @apply bg-secondary-100 text-secondary-900 hover:bg-secondary-200 active:bg-secondary-300 focus-visible:ring-secondary-500;
 }
 
 .btn-outline {
-  @apply border border-secondary-300 bg-transparent hover:bg-secondary-50 active:bg-secondary-100;
+  @apply border border-secondary-300 bg-transparent hover:bg-secondary-50 active:bg-secondary-100 focus-visible:ring-secondary-500;
 }
 
 .btn-ghost {
-  @apply hover:bg-secondary-100 active:bg-secondary-200;
+  @apply hover:bg-secondary-100 active:bg-secondary-200 focus-visible:ring-secondary-500;
 }
 
 .btn-danger {
-  @apply bg-danger-600 text-white hover:bg-danger-700 active:bg-danger-800;
+  @apply bg-danger-600 text-white hover:bg-danger-700 active:bg-danger-800 focus-visible:ring-danger-600;
 }
 
 .btn-success {
-  @apply bg-success-600 text-white hover:bg-success-700 active:bg-success-800;
+  @apply bg-success-600 text-white hover:bg-success-700 active:bg-success-800 focus-visible:ring-success-600;
+}
+
+.input {
+  @apply flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.label {
+  @apply text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70;
+}
+
+.badge {
+  @apply inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold transition-colors;
 }
 
 .badge-default {
-  @apply bg-secondary-100 text-secondary-800;
+  @apply bg-secondary-100 text-secondary-800 hover:bg-secondary-200;
 }
 
 .badge-primary {
-  @apply bg-primary-100 text-primary-800;
+  @apply bg-primary-100 text-primary-800 hover:bg-primary-200;
 }
 
 .badge-success {
-  @apply bg-success-100 text-success-800;
+  @apply bg-success-100 text-success-800 hover:bg-success-200;
 }
 
 .badge-warning {
-  @apply bg-warning-100 text-warning-800;
+  @apply bg-warning-100 text-warning-800 hover:bg-warning-200;
 }
 
 .badge-danger {
-  @apply bg-danger-100 text-danger-800;
+  @apply bg-danger-100 text-danger-800 hover:bg-danger-200;
 }
